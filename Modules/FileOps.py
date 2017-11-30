@@ -4,6 +4,11 @@ Created on Mon Nov 27 20:19:09 2017
 
 @author: Jesmond
 """
+import glob, os
+
+import datetime
+#http://strftime.org/
+import time
 #https://developers.google.com/edu/python/lists
 
 file = open("fruits.txt",'r') #type(file) io.TextIOWrapper
@@ -42,7 +47,7 @@ with open("fruits.txt",'a+') as file:
     content = file.read()
     file.write("\n EOL")
     
-#Exerise 1
+#Exerise writing in a loop
 temperatures = [10,-20,-289,100]
 def c_to_f(temperatures):
     with open("temp.txt",'w') as file:
@@ -54,3 +59,42 @@ def c_to_f(temperatures):
                 file.write(str(f) + "\n")
 
 c_to_f(temperatures)    
+
+#Exercise date and time
+currentDate = datetime.datetime.now()
+setDate = datetime.datetime(2017,11,29,0,0,0)
+delta = currentDate - setDate
+delta_days = delta.days
+filename = datetime.datetime.now()
+def create_file():
+    """creates file with name based on creation time stamp"""
+    with open(filename.strftime("%Y-%b-%d-%H-%M-%S") + ".txt", "w") as file:
+        file.write("")
+
+create_file()
+
+#Exercise time opertations
+list = []
+for i in range(5):
+    list.append(datetime.datetime.now())
+    time.sleep(1)
+    
+#Exercise file merge
+#os.chdir("D:\\github\\turbo-octo-potato") #Change of current work directory
+current_dir = os.getcwd() #Get current work directory
+num_of_files = 0
+
+#same file count by glob
+for file in glob.glob("*.txt"): 
+    num_of_files = num_of_files + 1
+
+#current dir same file count by os.listdir
+for file in current_dir:
+    if file.endswith(".txt"): 
+        num_of_files = num_of_files + 1
+
+#traverse dirctory same file  by os.walk
+for root, dirs, files in os.walk(current_dir):
+    for file in files:
+        if file.endswith(".txt"):
+            num_of_files = num_of_files + 1
