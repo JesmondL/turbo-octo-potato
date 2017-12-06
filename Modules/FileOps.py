@@ -58,7 +58,7 @@ def c_to_f(temperatures):
                 f = c*9/5+32
                 file.write(str(f) + "\n")
 
-c_to_f(temperatures)    
+#c_to_f(temperatures)    
 
 #Exercise date and time
 currentDate = datetime.datetime.now()
@@ -71,30 +71,47 @@ def create_file():
     with open(filename.strftime("%Y-%b-%d-%H-%M-%S") + ".txt", "w") as file:
         file.write("")
 
-create_file()
+#create_file()
 
 #Exercise time opertations
-list = []
-for i in range(5):
-    list.append(datetime.datetime.now())
-    time.sleep(1)
+def interval_file_ops():
+    """file operations in time intervals"""
+    for i in range(5):
+        with open(filename.strftime("%Y-%b-%d--%H-%M-%S") + ".txt", "w") as file:
+            file.write(str(i))
+            time.sleep(i)
     
+interval_file_ops()
 #Exercise file merge
 #os.chdir("D:\\github\\turbo-octo-potato") #Change of current work directory
-current_dir = os.getcwd() #Get current work directory
-num_of_files = 0
 
 #same file count by glob
-for file in glob.glob("*.txt"): 
-    num_of_files = num_of_files + 1
+#num_of_files = []
+#for file in glob.glob("*.txt"): 
+#    num_of_files = num_of_files + 1
 
 #current dir same file count by os.listdir
-for file in current_dir:
-    if file.endswith(".txt"): 
-        num_of_files = num_of_files + 1
+#for file in current_dir:
+#    if file.endswith(".txt"): 
+#        num_of_files = num_of_files + 1
 
-#traverse dirctory same file  by os.walk
-for root, dirs, files in os.walk(current_dir):
-    for file in files:
-        if file.endswith(".txt"):
-            num_of_files = num_of_files + 1
+##traverse dirctory of specific file type by os.walk
+#list =[]
+#for root, dirs, files in os.walk(current_dir):
+#    for file in files:
+#        if file.endswith(".txt"):
+#            list.extend(file)
+
+def merge_files():
+    """merge files in the current working directory"""
+    current_dir = os.getcwd() #Get current work directory
+    files_to_merge =[]
+    with open("merge.txt",'w') as mergefile:
+        for file in os.listdir(current_dir):
+            if file.endswith(".txt"):
+                files_to_merge.extend(file)
+                f = open(file,'r')
+                content = f.read()
+                [mergefile.write(i) for i in content]
+            
+#merge_files()
