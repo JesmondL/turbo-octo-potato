@@ -3,7 +3,7 @@
 Author: Jesmond Lee
 Date: 12/1/2018
 Python 3.5
-The learning the workings of ANN is using keras library.
+The learning the workings of ANN using keras library.
 
 First part is DataPreprocessing() of input data, analyze to extract only the 
 revelant data that could affect the desire outcome. Change text based input to 
@@ -20,30 +20,16 @@ Dropout of 10% in the hidden layer to prevent overfitting (high variance in
 kcross, acc in train set > test set).
 
 loss https://github.com/keras-team/keras/blob/master/keras/losses.py
-
 """
-#sudo install python3-setuptools
-#sudo easy_install3 pip
-#sudo pip3.5 install --upgrade pip3.5
-#sudo pip3.5 install theano
-#sudo pip3.5 install --upgrade theano
-#sudo pip3.5 install tensorflow
-#sudo pip3.5 install --upgrade tensorflow
-#sudo pip3.5 install keras
-#sudo pip3.5 install --upgrade keras
-#uninstall tensorflow, as keras overwrites tensorflow setting
-#sudo pip3.5 install tensorflow-gpu
-#sudo pip3.5 install --upgrade tensorflow-gpu
 
-# Check if GPU has been detected
-#import tensorflow as tf
-#sess = tf.Session(config=tf.ConfigProto(log_device_placement=True))
+import time
 
 # DATA PROCESSING--------------------------------------------------------------
 # Importing the libraries
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+from sklearn.preprocessing import StandardScaler
 import keras
 from keras.models import Sequential # initialize NN
 from keras.layers import Dense # create layers in NN
@@ -80,7 +66,6 @@ def DataPreprocessing():
     X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size = 0.2, random_state = 0)
     
     # Feature Scaling for train and test set
-    from sklearn.preprocessing import StandardScaler
     sc = StandardScaler()
     X_train = sc.fit_transform(X_train)
     X_test = sc.transform(X_test)
@@ -117,9 +102,12 @@ def ANN():
     # Accuracy
     acc = (cm [0,0] + cm [1,1])/(sum(sum(cm)))
     return acc
+    
+def Predict_this():
 # New prediction, convert input to numeric data, apply transformation
-#new_prediction = classifier.predict(sc.transform(np.array([[0.0,0,600,1,40,3,60000,2,1,1,50000]])))
-#new_prediction = (new_prediction > 0.5)
+    sc = StandardScaler()
+    new_prediction = classifier.predict(sc.transform(np.array([[0.0,0,600,1,40,3,60000,2,1,1,50000]])))
+    new_prediction = (new_prediction > 0.5)
 
 # EVALUATE, IMPROVE, TUNNING --------------------------------------------------
 # Kcross validation 10 folds = train model 10 times
@@ -137,23 +125,28 @@ def ANN():
 #variance = accuracies.std()
 
 # GridSearchCV
-def Build_Classifier(optimizer):
+def Build_Classifier(optimizer, loss):
     classifier = Sequential()
     classifier.add(Dense(units=6, kernel_initializer='uniform', activation='relu', input_dim=11))
-    classifier.add(Dropout(rate = 0.15))
+    classifier.add(Dropout(rate = 0.05))
     classifier.add(Dense(units=6, kernel_initializer='uniform', activation='relu'))
-    classifier.add(Dropout(rate = 0.15))
+    classifier.add(Dropout(rate = 0.05))
     classifier.add(Dense(units=1, kernel_initializer='uniform', activation='sigmoid'))   
-    classifier.compile(optimizer=optimizer, loss='poisson', metrics=['accuracy'])
+    classifier.compile(optimizer=optimizer, loss=loss, metrics=['accuracy'])
     return classifier
+start_time = time.time()
 data = DataPreprocessing()
 classifier = KerasClassifier(build_fn = Build_Classifier)
 # Dictionary of hyper parameters
-parameters = {'batch_size':[192, 96], 'epochs':[350, 450], 'optimizer':['adam','Nadam']}
-grid_search = GridSearchCV(estimator = classifier, param_grid = parameters,
-                           scoring = 'accuracy', cv = 10)
+parameters = {'batch_size':[96, 96, 96, 96, 96, 96], 
+'epochs':[1,1,1,1,1,1], 
+'optimizer':['adam','nadam','sgd','rmsprop','adagrad','adamax'],
+'loss':['binary_crossentropy','mean_squared_error','kullback_leibler_divergence','hinge','mean_squared_logarithmic_error','poisson']}
+grid_search = GridSearchCV(estimator = classifier, param_grid = parameters, scoring = 'accuracy', 
+                           cv = 2)
 grid_search = grid_search.fit(data[0], data[2])
 best_parameter = grid_search.best_params_
 best_accuracy = grid_search.best_score_
-
+print("%s seconds" %(time.time() - start_time))
 #11-6-6-1 no dropout, loss=binary_crossentropy, batch_size 25, epochs 500, adam, 84.6375%
+#11-6-6-1 0.15dropout, loss=poisson, batch_size 192, epochs 50, adam, 80.4% 773.7297103404999 seconds
