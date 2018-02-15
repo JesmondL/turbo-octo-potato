@@ -63,4 +63,4 @@ for name, email in zip(names, emails):
     msg.attach(MIMEText(message, 'plain'))
     
     # send email
-    #s.send_message(msg)
+    s.send_message(msg)

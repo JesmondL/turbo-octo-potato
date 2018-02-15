@@ -26,6 +26,8 @@ Environment setup prior to the usage of keras
 #export LD_LIBRARY_PATH=/usr/local/cuda/include
 #sudo pip3.5 install tensorflow-gpu
 #sudo pip3.5 install --upgrade tensorflow-gpu
+#sudo apt-get install libhdf5-dev
+#sudo pip3 install h5py
 
 # Check if GPU has been detected
 #import tensorflow as tf

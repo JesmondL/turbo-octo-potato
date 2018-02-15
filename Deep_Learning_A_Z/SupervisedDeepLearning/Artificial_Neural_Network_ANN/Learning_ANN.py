@@ -21,10 +21,6 @@ kcross, acc in train set > test set).
 
 loss https://github.com/keras-team/keras/blob/master/keras/losses.py
 """
-
-import time
-
-# DATA PROCESSING--------------------------------------------------------------
 # Importing the libraries
 import numpy as np
 import matplotlib.pyplot as plt
@@ -37,7 +33,10 @@ from keras.layers import Dropout # prevent overfitting
 from keras.wrappers.scikit_learn import KerasClassifier
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import GridSearchCV
+from keras.models import load_model
+import time
 
+# DATA PROCESSING--------------------------------------------------------------
 def DataPreprocessing():
     # Importing the dataset
     dataset = pd.read_csv('/home/turbo-octo-potato/Deep_Learning_A_Z/SupervisedDeepLearning/Artificial_Neural_Network_ANN/Churn_Modelling.csv')
@@ -72,16 +71,15 @@ def DataPreprocessing():
     return X_train, X_test, Y_train, Y_test
 
 # ANN CREATION-----------------------------------------------------------------
-def ANN():
+def create_ANN():
     data = DataPreprocessing()
     classifier = Sequential()
     # input layer to 1st hidden layer with dropout
     # num of hidden layer just use average of in and out as a start
     classifier.add(Dense(units=6, kernel_initializer='uniform', activation='relu', input_dim=11))
-    classifier.add(Dropout(rate = 0.1))
+    classifier.add(Dropout(rate = 0.05))
     # 2nd hidden layer with dropout
     classifier.add(Dense(units=6, kernel_initializer='uniform', activation='relu'))
-    classifier.add(Dropout(rate = 0.1))
     # output layer
     # 2 output category uses sigmoid, otherwise num of category-1 and softmax
     classifier.add(Dense(units=1, kernel_initializer='uniform', activation='sigmoid'))   
@@ -89,7 +87,7 @@ def ANN():
     # model use accuracy cutarian to improve the model
     classifier.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
     # fit X_train, Y_train to training set
-    classifier.fit(data[0], data[2], batch_size=10, epochs=1)
+    classifier.fit(data[0], data[2], batch_size=192, epochs=100)
     
 # MAKE PREDICTION AND EVALUATE MODEL-------------------------------------------
     # Predicting the Test set results
@@ -101,52 +99,51 @@ def ANN():
     cm = confusion_matrix(data[3], Y_pred)
     # Accuracy
     acc = (cm [0,0] + cm [1,1])/(sum(sum(cm)))
-    return acc
-    
-def Predict_this():
+    return classifier
+
+def predict_ANN():
 # New prediction, convert input to numeric data, apply transformation
+    classifier = load_model('/home/turbo-octo-potato/Deep_Learning_A_Z/SupervisedDeepLearning/Artificial_Neural_Network_ANN/model.h5')
     sc = StandardScaler()
     new_prediction = classifier.predict(sc.transform(np.array([[0.0,0,600,1,40,3,60000,2,1,1,50000]])))
     new_prediction = (new_prediction > 0.5)
 
 # EVALUATE, IMPROVE, TUNNING --------------------------------------------------
-# Kcross validation 10 folds = train model 10 times
-#def Build_Classifier():
-#    classifier = Sequential()
-#    classifier.add(Dense(units=6, kernel_initializer='uniform', activation='relu', input_dim=11))
-#    classifier.add(Dense(units=6, kernel_initializer='uniform', activation='relu'))
-#    classifier.add(Dense(units=1, kernel_initializer='uniform', activation='sigmoid'))   
-#    classifier.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-#    return classifier
-#data = DataPreprocessing()
-#classifier = KerasClassifier(build_fn = Build_Classifier,batch_size=10, epochs=100)
-#accuracies = cross_val_score(estimator = classifier, X = data[0], y = data[2], cv=10, n_jobs=-1)
-#mean = accuracies.mean()
-#variance = accuracies.std()
-
-# GridSearchCV
-def Build_Classifier(optimizer, loss):
+def Experiment_Classifier(optimizer, loss):
     classifier = Sequential()
     classifier.add(Dense(units=6, kernel_initializer='uniform', activation='relu', input_dim=11))
     classifier.add(Dropout(rate = 0.05))
     classifier.add(Dense(units=6, kernel_initializer='uniform', activation='relu'))
-    classifier.add(Dropout(rate = 0.05))
     classifier.add(Dense(units=1, kernel_initializer='uniform', activation='sigmoid'))   
     classifier.compile(optimizer=optimizer, loss=loss, metrics=['accuracy'])
     return classifier
+
+def kxValidation(classifier): 
+    # Kcross validation 10 folds = train model 10 times
+    classifier = KerasClassifier(build_fn = Experiment_Classifier, batch_size=192, epoches=100)
+    accuracies = cross_val_score(estimator = classifier, X = data[0], y = data[2], cv=10, n_jobs=-1)
+    mean = accuracies.mean()
+    variance = accuracies.std()
+    
+def gridSearchCV(classifier):
+    # GridSearchCV finds the best parameters yields highest accuracy
+    grid_search = GridSearchCV(estimator = classifier, param_grid = parameters, 
+                               scoring = 'accuracy', cv = 10)
+    grid_search = grid_search.fit(data[0], data[2])
+    #best_parameter = grid_search.best_params_
+    #best_accuracy = grid_search.best_score_
+    return grid_search
+    
 start_time = time.time()
 data = DataPreprocessing()
-classifier = KerasClassifier(build_fn = Build_Classifier)
+classifier = KerasClassifier(build_fn = Experiment_Classifier)
 # Dictionary of hyper parameters
-parameters = {'batch_size':[96, 96, 96, 96, 96, 96], 
-'epochs':[1,1,1,1,1,1], 
-'optimizer':['adam','nadam','sgd','rmsprop','adagrad','adamax'],
-'loss':['binary_crossentropy','mean_squared_error','kullback_leibler_divergence','hinge','mean_squared_logarithmic_error','poisson']}
-grid_search = GridSearchCV(estimator = classifier, param_grid = parameters, scoring = 'accuracy', 
-                           cv = 2)
-grid_search = grid_search.fit(data[0], data[2])
-best_parameter = grid_search.best_params_
-best_accuracy = grid_search.best_score_
+parameters = {'batch_size':[96], 'epochs':[100], 'optimizer':['adam'], 'loss':['binary_crossentropy']}
+gscv=gridSearchCV(classifier)
 print("%s seconds" %(time.time() - start_time))
+# Save model
+model_backup_path = '/home/turbo-octo-potato/Deep_Learning_A_Z/SupervisedDeepLearning/Artificial_Neural_Network_ANN/model.h5'
+gscv.best_estimator_.model.save(model_backup_path)
+print("Model saved to", model_backup_path)
 #11-6-6-1 no dropout, loss=binary_crossentropy, batch_size 25, epochs 500, adam, 84.6375%
 #11-6-6-1 0.15dropout, loss=poisson, batch_size 192, epochs 50, adam, 80.4% 773.7297103404999 seconds
