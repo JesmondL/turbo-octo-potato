@@ -103,7 +103,7 @@ def train_CNN(classifier):
     #myFile.write(history.losses)
     #myFile.close()
         
-# SINGLE PREDICTION ----------------------------------------------------------------------
+# SINGLE PREDICTION -----------------------------------------------------------
 def predict_CNN():
     classifier = load_model('/home/turbo-octo-potato/Deep_Learning_A_Z/SupervisedDeepLearning/Convolutional_Neural_Networks_CNN/model.h5')
     test_image = image.load_img('dataset/single_prediction/cat_or_dog_1.jpg', 

@@ -70,9 +70,8 @@ def DataPreprocessing():
     X_test = sc.transform(X_test)
     return X_train, X_test, Y_train, Y_test
 
-# ANN CREATION-----------------------------------------------------------------
+# INITIALIZE ANN --------------------------------------------------------------
 def create_ANN():
-    data = DataPreprocessing()
     classifier = Sequential()
     # input layer to 1st hidden layer with dropout
     # num of hidden layer just use average of in and out as a start
@@ -86,10 +85,14 @@ def create_ANN():
     # complie with SGD type adam 
     # model use accuracy cutarian to improve the model
     classifier.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+    return classifier
+    
+# TRAINING ANN ----------------------------------------------------------------
+def train_CNN(classifier):  
+    data = DataPreprocessing()
     # fit X_train, Y_train to training set
     classifier.fit(data[0], data[2], batch_size=192, epochs=100)
     
-# MAKE PREDICTION AND EVALUATE MODEL-------------------------------------------
     # Predicting the Test set results
     Y_pred = classifier.predict(data[1])
     # Result change to true/false
@@ -99,8 +102,11 @@ def create_ANN():
     cm = confusion_matrix(data[3], Y_pred)
     # Accuracy
     acc = (cm [0,0] + cm [1,1])/(sum(sum(cm)))
-    return classifier
+    # Save model
+    model_backup_path = '/home/turbo-octo-potato/Deep_Learning_A_Z/SupervisedDeepLearning/Artificial_Neural_Network_ANN/model.h5'
+    classifier.save(model_backup_path)
 
+# SINGLE PREDICTION -----------------------------------------------------------
 def predict_ANN():
 # New prediction, convert input to numeric data, apply transformation
     classifier = load_model('/home/turbo-octo-potato/Deep_Learning_A_Z/SupervisedDeepLearning/Artificial_Neural_Network_ANN/model.h5')
