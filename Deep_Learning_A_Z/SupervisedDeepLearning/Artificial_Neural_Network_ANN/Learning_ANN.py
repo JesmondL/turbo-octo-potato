@@ -3,20 +3,25 @@
 Author: Jesmond Lee
 Date: 12/1/2018
 Python 3.5
-The learning the workings of ANN using keras library.
+
+ANN is used for regression and classification.
 
 First part is DataPreprocessing() of input data, analyze to extract only the 
-revelant data that could affect the desire outcome. Change text based input to 
-values by labelencoder. Apply OneHotEncoder if text data has more than 2 
-categories, and remove 1 column from the OneHotEncoder to avoid dummy variable
-trap. Split data into train and test set, and apply fit_transform to train,
-transform (centering, scaling) for test. Standard deviation of 1 and 0 mean,
-gives higher accuracy.
+revelant data column (category) from the csv file that could affect the desire 
+outcome. Change any text based data to values by labelencoder. Apply OneHotEncoder
+if text data has more than 2 meaning (eg, Yes, No, Maybe), and remove 1 column 
+from the OneHotEncoder to avoid dummy variable trap. Split data into train and 
+test set, and center the data to have a standard deviation of 1 and 0 mean by
+subtract the mean and then divide the result by the standard deviation. Apply 
+fit_transform to training data, would obtain the mean and standard deviation 
+which is immediately use to tranform the training data. Test data only needs
+transform, since the mean and SD was obtained previously from training data.
+Resulted data would have better accuracy in the ANN.
 
 Second part is Build_Classifier() using keras library Sequential to build the
 input layer, hidden layer and output layer. Activation function, rectifier is
 used for the hidden layers, output layer uses sigmod due to only 2 categories.
-Dropout of 10% in the hidden layer to prevent overfitting (high variance in 
+Dropouts in the hidden layer to prevent overfitting (high variance in 
 kcross, acc in train set > test set).
 
 loss https://github.com/keras-team/keras/blob/master/keras/losses.py
@@ -34,6 +39,7 @@ from keras.wrappers.scikit_learn import KerasClassifier
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import GridSearchCV
 from keras.models import load_model
+from keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint, TensorBoard
 import time
 
 # DATA PROCESSING--------------------------------------------------------------
@@ -71,17 +77,17 @@ def DataPreprocessing():
     return X_train, X_test, Y_train, Y_test
 
 # INITIALIZE ANN --------------------------------------------------------------
-def create_ANN():
+def create_ANN(ipts, u1, u2, u3):
     classifier = Sequential()
     # input layer to 1st hidden layer with dropout
     # num of hidden layer just use average of in and out as a start
-    classifier.add(Dense(units=6, kernel_initializer='uniform', activation='relu', input_dim=11))
+    classifier.add(Dense(units=u1, kernel_initializer='uniform', activation='relu', input_dim=ipts))
     classifier.add(Dropout(rate = 0.05))
     # 2nd hidden layer with dropout
-    classifier.add(Dense(units=6, kernel_initializer='uniform', activation='relu'))
+    classifier.add(Dense(units=u2, kernel_initializer='uniform', activation='relu'))
     # output layer
     # 2 output category uses sigmoid, otherwise num of category-1 and softmax
-    classifier.add(Dense(units=1, kernel_initializer='uniform', activation='sigmoid'))   
+    classifier.add(Dense(units=u3, kernel_initializer='uniform', activation='sigmoid'))   
     # complie with SGD type adam 
     # model use accuracy cutarian to improve the model
     classifier.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
@@ -89,9 +95,14 @@ def create_ANN():
     
 # TRAINING ANN ----------------------------------------------------------------
 def train_CNN(classifier):  
+    es = EarlyStopping(monitor='val_loss', min_delta=1e-10, patience=10, verbose=1)
+    rlr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=5, verbose=1)
+    mcp = ModelCheckpoint(filepath='weights.h5', monitor='val_loss', verbose=1, save_best_only=True, save_weights_only=True)
+    tb = TensorBoard('logs')
     data = DataPreprocessing()
     # fit X_train, Y_train to training set
-    classifier.fit(data[0], data[2], batch_size=192, epochs=100)
+    classifier.fit(data[0], data[2], batch_size=192, epochs=100,
+                   verbose=2, callbacks=[es, rlr,mcp, tb], shuffle=True)
     
     # Predicting the Test set results
     Y_pred = classifier.predict(data[1])
@@ -102,9 +113,15 @@ def train_CNN(classifier):
     cm = confusion_matrix(data[3], Y_pred)
     # Accuracy
     acc = (cm [0,0] + cm [1,1])/(sum(sum(cm)))
+    
     # Save model
-    model_backup_path = '/home/turbo-octo-potato/Deep_Learning_A_Z/SupervisedDeepLearning/Artificial_Neural_Network_ANN/model.h5'
-    classifier.save(model_backup_path)
+    classifier.save('/home/turbo-octo-potato/Deep_Learning_A_Z/SupervisedDeepLearning/Artificial_Neural_Network_ANN/model.h5')
+    
+    # Save loss history to file
+    myFile = open('history.txt', 'w+')
+    myFile.write(classifier.history)
+    myFile.write(acc)
+    myFile.close()
 
 # SINGLE PREDICTION -----------------------------------------------------------
 def predict_ANN():

@@ -4,22 +4,23 @@ Author: Jesmond Lee
 Date: 22/1/2018
 Python 3.5
 
-Input image - color pixles are converted to values for application of feature dectectors.
-Images will be forced to dimension 128x128, as input size could be different, a consistent
-input attribute is necessary for accuracy.
+CNN is used for computer vision.
 
+First part is the structure of how the images will be processed to identify key
+feature and convert these information into neurons for feeding into a ANN for prediction.
+Input image - color pixles are converted to values for application of feature dectectors.
+Images will be forced to dimension 64x64, as input size could be different, a consistent
+input attribute is necessary for accuracy.
 Feature detector/ Kerner/ Filter - feature detectors (num is ^2) of a square shape. 
 1 feature detector ties to 1 feature map (a reduced size of processed image details). End 
-of each detection will move to the next area of pixles by the stride.          
-                                                                
+of each detection will move to the next area of pixles by the stride.                                                                         
 Feature map/ convolt feature/ activation map - feature map resp for detection different 
 features (Relu activation)
-
 Max pooling - further reduce the size of feature map before passing to the network. 
 Spacial characteristic of feature map is kept intact. 2x2 would half the feature map size.
-
 Flatterning - maps are converted to a vector of input for network to process
 
+Second part is the obtaining the train and test date to begin processing of images.
 Full connection - network to process the inputs with layers to give an predict output
 """
 
@@ -32,6 +33,7 @@ from keras.layers import Dropout
 from keras.models import load_model
 import numpy as np
 from keras.preprocessing import image
+from keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint, TensorBoard
 
 # INITIALIZE CNN --------------------------------------------------------------
 def create_CNN():
@@ -59,6 +61,10 @@ def create_CNN():
 
 # TRAINING CNN ----------------------------------------------------------------
 def train_CNN(classifier):
+    es = EarlyStopping(monitor='val_loss', min_delta=1e-10, patience=10, verbose=1)
+    rlr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=5, verbose=1)
+    mcp = ModelCheckpoint(filepath='weights.h5', monitor='val_loss', verbose=1, save_best_only=True, save_weights_only=True)
+    tb = TensorBoard('logs')
     #https://keras.io/preprocessing/image/
     from keras.preprocessing.image import ImageDataGenerator
     train_datagen = ImageDataGenerator(
@@ -85,6 +91,8 @@ def train_CNN(classifier):
             training_set,
             steps_per_epoch=8000/96,# num of training images, total/batch size
             epochs=100, # num of iteration on the data
+            verbose=2,
+            callbacks=[es, rlr,mcp, tb],
             validation_data=test_set,
             validation_steps=2000/96,# num of test images, total/batch size
             workers = 10, # maximum num of processor to use
@@ -93,19 +101,16 @@ def train_CNN(classifier):
             shuffle=True) # shuffle the training data
     
     # Save model
-    model_backup_path = '/home/turbo-octo-potato/Deep_Learning_A_Z/SupervisedDeepLearning/Convolutional_Neural_Networks_CNN/model.h5'
-    classifier.save(model_backup_path)
-    print("Model saved to", model_backup_path)
+    classifier.save('model.h5')
      
     # Save loss history to file
-    loss_history_path = '/home/turbo-octo-potato/Deep_Learning_A_Z/SupervisedDeepLearning/Convolutional_Neural_Networks_CNN'
-    #myFile = open(loss_history_path, 'w+')
-    #myFile.write(history.losses)
-    #myFile.close()
+    myFile = open('history.txt', 'w+')
+    myFile.write(classifier.history)
+    myFile.close()
         
 # SINGLE PREDICTION -----------------------------------------------------------
 def predict_CNN():
-    classifier = load_model('/home/turbo-octo-potato/Deep_Learning_A_Z/SupervisedDeepLearning/Convolutional_Neural_Networks_CNN/model.h5')
+    classifier = load_model('/model.h5')
     test_image = image.load_img('dataset/single_prediction/cat_or_dog_1.jpg', 
                                 target_size=(64,64))
     test_image = image.img_to_array(test_image)
@@ -116,3 +121,6 @@ def predict_CNN():
         prediction = 'cat'
     else:
         prediction = 'dog'
+        
+CNN = create_CNN()
+train_CNN(CNN)
