@@ -44,56 +44,86 @@ people who are in the zone.
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-
-# Importing the dataset
-dataset = pd.read_csv('/home/turbo-octo-potato/Deep_Learning_A_Z/UnsupervisedDeepLearning/Self_Organizing_Maps_SOM/Credit_Card_Applications.csv')
-X = dataset.iloc[:, :-1].values # Input, customer information
-y = dataset.iloc[:, -1].values # Outcome, approved or not
-
-# Feature Scaling input to range of 0 to 1
 from sklearn.preprocessing import MinMaxScaler
-sc = MinMaxScaler(feature_range = (0, 1))
-X = sc.fit_transform(X)
 
-# Training the SOM
-from UnsupervisedDeepLearning.Self_Organizing_Maps_SOM.minisom import MiniSom
-# create a 10x10 grid with 15 columns input, update area of 1 WRT winning neuron 
-# neighbours and SOM convergence rate
-som = MiniSom(x = 10, y = 10, input_len = 15, sigma = 1.0, learning_rate = 0.5)
-som.random_weights_init(X) # random initialize weights to the input
-som.train_random(data = X, num_iteration = 100)
+class SOM(object):    
+    def __init__(self):
+        SOM.sc = MinMaxScaler(feature_range = (0, 1))
+        SOM.path = 'C:\\Users\\jesmond.lee\\Downloads\\Self_Organizing_Maps_SOM\\'
 
-# Visualizing the results
-from pylab import bone, pcolor, colorbar, plot, show
-bone() # initialize empty window
-pcolor(som.distance_map().T) # MIT metrics
-colorbar()
-markers = ['o', 's'] # winning node; circle is OK, square is fraud?!
-colors = ['r', 'g'] # red = no approval, green = approval
-for i, x in enumerate(X):   # loop through all rows of input
-    w = som.winner(x)       # get winning node of customer 
-    plot(w[0] + 0.5,        # winning node X coordinate [0] and Y coordinate [1]
-         w[1] + 0.5,        # offset XY 0.5 to be drawn on the center of the grid
-         markers[y[i]], # associate markers and y with 0 = no approval as red, 1 = approval as green
-         markeredgecolor = colors[y[i]],
-         markerfacecolor = 'None', # marker inside color
-         markersize = 10,
-         markeredgewidth = 2)
-show()
+# DATA PROCESSING--------------------------------------------------------------
+    @staticmethod # do not have any info about the class
+    def DataPreprocessing():
+        # Importing the dataset
+        dataset = pd.read_csv(SOM.path+'Credit_Card_Applications.csv')
+        X = dataset.iloc[:, :-1].values # Input, customer information
+        Y = dataset.iloc[:, -1].values # Outcome, approved or not
+        
+        # Feature Scaling input to range of 0 to 1
+        X = SOM.sc.fit_transform(X)
+        return X,Y,dataset
+    
+# TRAINING SOM ----------------------------------------------------------------
+    @staticmethod # do not have any info about the class
+    def train_SOM(X, Y): 
+        from Self_Organizing_Maps_SOM.minisom import MiniSom
+        # create a 10x10 grid with 15 columns input, update area of 1 WRT winning neuron 
+        # neighbours and SOM convergence rate
+        som = MiniSom(x = 10, y = 10, input_len = 15, sigma = 1.0, learning_rate = 0.5)
+        som.random_weights_init(X) # random initialize weights to the input
+        som.train_random(data = X, num_iteration = 100)
+        
+        # Visualizing the results
+        from pylab import bone, pcolor, colorbar, plot, show
+        bone() # initialize empty window
+        pcolor(som.distance_map().T) # MIT metrics
+        colorbar()
+        markers = ['o', 's'] # winning node; circle is OK, square is fraud?!
+        colors = ['r', 'g'] # red = no approval, green = approval
+        for i, x in enumerate(X):   # loop through all rows of input
+            w = som.winner(x)       # get winning node of customer 
+            plot(w[0] + 0.5,        # winning node X coordinate [0] and Y coordinate [1]
+                 w[1] + 0.5,        # offset XY 0.5 to be drawn on the center of the grid
+                 markers[Y[i]], # associate markers and y with 0 = no approval as red, 1 = approval as green
+                 markeredgecolor = colors[Y[i]],
+                 markerfacecolor = 'None', # marker inside color
+                 markersize = 10,
+                 markeredgewidth = 2)
+        show()
+        return som
+    
+# EVALUATE --------------------------------------------------------------------
+    @staticmethod # do not have any info about the class
+    def Evaluate(X, som):
+        som_map = som.distance_map().T
+        som_y, som_x = np.where(som.distance_map().T >= 0.95) # get 2D array index of threshold
+        som_y = som_y + 1
+        som_x = som_x + 1
+        
+        # Finding the frauds
+        mappings = som.win_map(X) # map SOM coordinate XY to the customer profile/input
+        win_nodes_mapping=''
+        if len(som_x) == 1:
+            win_nodes_mapping = 'mappings[(' + str(som_x[0]) + ',' + str(som_y[0]) + ')]'
+        else:
+            for i in range(len(som_x)):
+                if len(mappings[som_x[i],som_y[i]]) != 0:
+                    win_nodes_mapping = win_nodes_mapping + ', mappings[(' + str(som_x[i]) + ',' + str(som_y[i]) + ')]'
+                else:
+                    win_nodes_mapping = win_nodes_mapping
+                    # 0 array will remove win XY from list of distance_map().T >= 0.95
+                    np.delete(som_x,[i],axis=None)
+                    np.delete(som_y,[i],axis=None)
+            win_nodes_mapping = win_nodes_mapping[2:] # remove , 
+        
+        # Get the winning node coordinates from the map. Coordinates changes each time
+        # mapping XY cannot be empty and must have same numbers of array if multiples are referred
+        #frauds = np.concatenate((win_nodes_mapping), axis = 0) str doesn't work
+        #frauds = np.concatenate((mappings[(som_x[0],som_y[0])]), (mappings[(som_x[1],som_y[1])]), axis = 0) # using more than 1 point of reference
+        frauds = mappings[(som_x[0],som_y[0])] # single reference
+        #frauds = SOM.sc.inverse_transform(frauds) # error at here ValueError: Expected 2D array, got 1D
+        return frauds
 
-som_map = som.distance_map().T
-som_y, som_x = np.where(som.distance_map().T >= 0.95) # get 2D array index of threshold
-som_y = som_y + 1
-som_x = som_x + 1
-win_nodes_mapping=''
-if len(som_x) == 1:
-    win_nodes_mapping = 'mappings[(' + str(som_x[0]) + ',' + str(som_y[0]) + ')]'
-else:
-    for i in range(len(som_x)):
-        win_nodes_mapping = win_nodes_mapping + ', mappings[(' + str(som_x[i]) + ',' + str(som_y[i]) + ')]'
-# Finding the frauds
-mappings = som.win_map(X) # map SOM coordinate XY to the customer profile/input
-# Get the winning node coordinates from the map. Coordinates changes each time
-#frauds = np.concatenate((mappings[(som_x[0],som_y[0])], mappings[(som_x[1],som_y[1])]), axis = 0)
-#frauds = np.concatenate((win_nodes_mapping), axis = 0)
-frauds = sc.inverse_transform(frauds)
+#data = DataPreprocessing()
+#trained_SOM = train_SOM(data[0], data[1])
+#result = Evaluate(data[0], trained_SOM)
