@@ -14,10 +14,10 @@ from tweepy import OAuthHandler
 from tweepy import Stream
 from tweepy.streaming import StreamListener
  
-consumer_key = 'ypmCthyRLtb9LKv4m6UPtYjGQ'
-consumer_secret = 'uXGcq60rHoJXwDltSgIDW49JGa8PphDU0Srtiz85kCY8PhbXWe'
-access_token = '999937621508833280-knMsRQPXCQadpGu8ebs6kh7uzTedv1l'
-access_secret = 'F6dfCD9S7KaZcoFpTDuW3kwlpkdeiB6ykxgnwTKeOlOes'
+consumer_key = 
+consumer_secret = '
+access_token = '
+access_secret = 
  
 def get_parser():
     """Get parser for command line arguments."""
