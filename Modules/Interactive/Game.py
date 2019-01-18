@@ -46,7 +46,7 @@ pygame.draw.rect(DISPLAYSURFACE,RED,(200,100,100,50))
 pygame.draw.aaline(DISPLAYSURFACE,BLACK,(5,5),(25,25),4)# anti-aliasing line
 
 # image
-carImg = pygame.image.load('Resources/Shell_Concept_Car.jpg')
+carImg = pygame.image.load('../../Resources/sample.png')
 car_x = 50
 car_y = 50
 direction = 'right'
