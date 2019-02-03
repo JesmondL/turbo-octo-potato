@@ -1,0 +1,8 @@
+Create a python environment for this project, either virtualenv or anaconda (conda create -n myenv python=3.4) and etc
+Environment to be created with requirement.txt
+
+Using Visual Studio Code, install python extension with
+https://marketplace.visualstudio.com/items?itemName=ms-python.python
+
+Select the python environment for this project
+https://code.visualstudio.com/docs/python/environments

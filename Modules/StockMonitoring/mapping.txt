@@ -1,0 +1,4 @@
+yahoo_api_json['quoteSummary']['result'][0]['price']["regularMarketPreviousClose"]["raw"]
+yahoo_api_json['quoteSummary']['result'][0]['price']["regularMarketOpen"]["raw"]
+yahoo_api_json['quoteSummary']['result'][0]['price']["regularMarketDayHigh"]["raw"]
+yahoo_api_json['quoteSummary']['result'][0]['price']["regularMarketDayLow"]["raw"]
