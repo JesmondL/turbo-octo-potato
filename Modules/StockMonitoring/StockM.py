@@ -26,7 +26,7 @@ class DBactions(object):
         self.results = {}
     #returns all tickers inside db.txt
     def getAll(self):
-        with open ('db.txt', 'r') as file:
+        with open ('StockList.txt', 'r') as file:
             for line in file:
                 line = line.split(',', 3)
                 self.results[line[0]]= line[1]

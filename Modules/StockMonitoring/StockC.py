@@ -1,5 +1,6 @@
 #CTL+SHIFT+P python interpretor to webscraping
 #pip install required package
+# https://sg.finance.yahoo.com/quote/Z74.SI/history?period1=1262275200&period2=1546358400&interval=1d&filter=history&frequency=1d
 
 import os
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
@@ -55,20 +56,32 @@ def scrapAPI(purpose, ticker):
    yahoo_api_response = requests.get(yahoo_api)
    yahoo_api_json =  json.loads(yahoo_api_response.text)
    if (yahoo_api_json["quoteSummary"]["error"] == None):
+      # Date,Open,High,Low,Close
+
       # method 1 - object tree
       # json_tree = objectpath.Tree(yahoo_api_json["quoteSummary"]["result"]) #build obj tree
-      # result_tuple = tuple(json_tree.execute('$..regularMarketDayLow.fmt'))
+      # rOpen = tuple(json_tree.execute('$..regularMarketOpen.fmt'))
+      # rHigh = tuple(json_tree.execute('$..regularMarketDayHigh.fmt'))
+      # rLow = tuple(json_tree.execute('$..regularMarketDayLow.fmt'))
+      # rClose = tuple(json_tree.execute('$..regularMarketPreviousClose.fmt'))
+
       # method 2 - direct path
-      # info = yahoo_api_json["quoteSummary"]["result"][0]["price"]["symbol"]
-      # info = yahoo_api_json['quoteSummary']['result'][0]['price']["regularMarketDayHigh"]["raw"])
-      print("API Success {0}".format(ticker))
-   print("API error: {0}".format(yahoo_api_json["quoteSummary"]["error"]))
+      rOpen = yahoo_api_json['quoteSummary']['result'][0]['price']["regularMarketOpen"]["raw"]
+      rHigh = yahoo_api_json['quoteSummary']['result'][0]['price']["regularMarketDayHigh"]["raw"]
+      rLow = yahoo_api_json['quoteSummary']['result'][0]['price']["regularMarketDayLow"]["raw"]
+      rClose = yahoo_api_json['quoteSummary']['result'][0]['price']["regularMarketPreviousClose"]["raw"]
+      #time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(1347517370))
+      print("API Success {0}".format(ticker.symbol))
+      with open(ticker.symbol+".csv", "a") as file:
+         file.write(str(rOpen)+","+str(rHigh)+","+str(rLow)+","+str(rClose)+"\n")
+   else:
+      print("API error: {0}".format(yahoo_api_json["quoteSummary"]["error"]))
 
 def start():
    tickers = readTicker()
    tickers_obj = createTicker(tickers)
    for ticker_obj in tickers_obj:
-      scrapAPI("quoteSummary", ticker_obj)
+      scrapAPI("price", ticker_obj)
       time.sleep(5)
    
 if __name__ == "__main__":
