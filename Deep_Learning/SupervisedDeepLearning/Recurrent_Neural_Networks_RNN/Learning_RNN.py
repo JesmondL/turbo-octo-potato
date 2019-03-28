@@ -129,7 +129,7 @@ def train_RNN(regressor, X_train, Y_train):
     predicted_stock_price = sc.inverse_transform(predicted_stock_price)
     
     # Save model
-    regressor.save('model.h5')
+    #regressor.save('model.h5')
     
     return real_stock_price, predicted_stock_price
     
@@ -149,7 +149,7 @@ def train_RNN_multi(regressor, X_train, Y_train, sc_predict):
     real_stock_price = sc_predict.inverse_transform(Y_train[19:-1])
         
     # Save model
-    regressor.save('model.h5')
+    #regressor.save('model.h5')
     
     return real_stock_price, predicted_stock_price
     
