@@ -5,7 +5,7 @@
 import os
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 import StockM, StockV
-import time, urllib.request, json, requests, objectpath
+import time, urllib.request, json, requests
 from bs4 import BeautifulSoup # for html parsing and scraping
 
 def createTicker(tickers):
@@ -23,7 +23,7 @@ def readTicker():
    db_Read = StockM.DBactions()
    tickers = db_Read.getAll()
    #calls view
-   StockV.showAllView(db_Read.results)
+   StockV.showAllView(db_Read.jsonStock)
    return tickers
 
 def updateTicker(tickers):
@@ -34,22 +34,24 @@ def deleteTicker(tickers):
    """ Delete ticker obj in db """
    return True
 
+def storeScrap(jsonObj):
+   """ Store scrapped obj to db """
+
+
 def scrapWeb(ticker):
-   d = {} # data placeholder
+   with open('Modules\\StockMonitoring\\yahoo_map.json') as f:
+      jsonYmap = json.load(f)
+
    page = urllib.request.urlopen('https://sg.finance.yahoo.com/quote/%s?p=%s&.tsrc=fin-srch-v1'%(ticker.symbol,ticker.symbol))
-   soup = BeautifulSoup(page, 'html.parser')
-   name_box = soup.find('h1', attrs={'data-reactid':'7'})#title
-   left_box = soup.find('div', attrs={'data-test':'left-summary-table'})
-   left_box = left_box.find_all('span')
-   for c in range (int(len(left_box)/2)):
-      d[left_box[c].text] = left_box[c+1].text
-   right_box = soup.find('div', attrs={'data-test':'right-summary-table'})
-   right_box = right_box.find_all('span')
-   for c in range (int(len(right_box)/2)):
-      d[right_box[c].text] = right_box[c+1].text
-   jd = json.dumps(d)
-   #for item in d:
-   #   setattr(ticker, ticker[item], d[item])
+   soup = BeautifulSoup(page, "lxml")
+   
+   for index, item in enumerate (jsonYmap):
+      if item == "Ticker":
+         jsonYmap[item] = soup.find("h1").text
+      else:
+         jsonYmap[item] = soup.find("td", attrs={"data-test":jsonYmap[item]}).text
+
+   return jsonYmap
 
 def scrapAPI(purpose, ticker):
    yahoo_api = "https://query2.finance.yahoo.com/v11/finance/quoteSummary/{0}?formatted=true&lang=en-US&modules={1}".format(ticker.symbol, purpose)
@@ -80,8 +82,12 @@ def scrapAPI(purpose, ticker):
 def start():
    tickers = readTicker()
    tickers_obj = createTicker(tickers)
+   
    for ticker_obj in tickers_obj:
-      scrapAPI("price", ticker_obj)
+      # scrapAPI("price", ticker_obj)
+      scraps = scrapWeb(ticker_obj)
+      print ('Scrapped ' + ticker_obj)
+      storeScrap(scraps)
       time.sleep(5)
    
 if __name__ == "__main__":

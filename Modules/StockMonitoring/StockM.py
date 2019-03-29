@@ -38,41 +38,33 @@ class Ticker(object):
 		
 class DBactions(object):
     def __init__(self):
-        self.results = {}
-        
-    #returns all tickers inside db.txt
-    def getAll(self):
-        with open ('StockList.txt', 'r') as file:
-            for line in file:
-                line = line.split(',', 3)
-                self.results[line[0]]= line[1]
-        return self.results
+        self.jsonStock = {}
 
-    #update stock name/ symbol to db.txt
-    def updateOne(self):
-        return "Success"  
+    def getAll(self):
+        with open('stock.json') as f:
+            self.jsonStock = json.load(f)
+        return self.jsonStock
+
+    def writeDB(self):
+        conn = create_connection('stock.db')
+        c = conn.cursor()
+        c.execute('''CREATE TABLE stocks(date text, trans text, symbol text, qty real, price real)''')
+        conn.commit()
+        conn.close()
 
     def readDB(self):
         conn = create_connection('stock.db')
-
         c = conn.cursor()
         c.execute("""SHOW TABLES""")
         results = c.fetchall()
         results_list = [item[0] for item in results] # Conversion to list of str
         return results_list
-        
-    def writeDB(self):
-        conn = create_connection('stock.db')
-        db_table = readDB()
-        if table in db_table:
-             continue
-        else:
-            # Create table
-            c.execute('''CREATE TABLE stocks(date text, trans text, symbol text, qty real, price real)''')
-            conn.commit()
-        except Exception as e:
-            print (e)
-        conn.close()
+
+    def updateDB(self):
+        return "Success"
+
+    def deleteDB(self):
+        return "Success"  
 
 #a = DBactions()
 #a.getAll()
