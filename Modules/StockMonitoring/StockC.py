@@ -51,4 +51,4 @@ if __name__ == "__main__":
 
          time.sleep(5)
    db.close()
-   StockV.endView(datetime.datetime.weekday(), datetime.datetime.now().hour)
+   StockV.endView(datetime.datetime.now().weekday(), datetime.datetime.now().hour)

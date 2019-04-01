@@ -15,7 +15,7 @@ def scrappedView(ticker):
    print ('Scrapped ' + ticker + ' information')
 
 def endView(day, hour):
-   if day > 5:
+   if day > 4:
       print ("Market does not open on weekends!")
    elif hour >= 17:
       print ('Market has closed, continue tomorrow!')
