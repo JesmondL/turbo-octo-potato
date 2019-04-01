@@ -41,7 +41,7 @@ if __name__ == "__main__":
 
    while (int(datetime.datetime.now().hour) >= int(mDB.jsonStock['Singapore_Time']['open'])) & \
       (int(datetime.datetime.now().hour) <= int(mDB.jsonStock['Singapore_Time']['close'])) & \
-         (datetime.datetime.weekday() <= 6): # weekends will be FALSE
+         (datetime.datetime.now().weekday() <= 5): # weekends will be FALSE
       for ticker in mDB.jsonStock['Singapore_Stock']:
          scraps = StockM.scrapWeb(mDB.jsonStock['Singapore_Stock'][ticker], jsonYmap)
          StockV.scrappedView(ticker)
