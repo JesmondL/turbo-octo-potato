@@ -11,8 +11,8 @@ def showAllView(db_Read):
 def startView():
    print ('Starting up monitoring program...')
    
-def scrappedView(ticker):
-   print ('Scrapped ' + ticker + ' information')
+def scrappedView(sDate, sTicker, sValue):
+   print (sDate + ' ' + sTicker + ' ' + sValue)
 
 def endView(day, hour):
    if day > 4:

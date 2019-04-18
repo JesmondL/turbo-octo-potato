@@ -4,7 +4,7 @@ handling data and business logic"""
 
 import os
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
-import json, os, sqlite3, urllib.request
+import json, os, sqlite3, urllib.request, requests
 from bs4 import BeautifulSoup # for html parsing and scraping
 
 def create_connection(db_file):
@@ -29,48 +29,89 @@ def create_table(conn, ticker):
     return cur.lastrowid
 
 def loadJSON(fp):
-    jsonObj = {}
-    with open(fp) as f:
-        jsonObj = json.load(f)
-    return jsonObj
+    try:
+        with open(fp) as f:
+            jsonObj = json.load(f)
+        return jsonObj
+    except Exception as e:
+        print (e)
+        return
 
 def scrapWeb(ticker, jsonYmap):
-    page = urllib.request.urlopen('https://sg.finance.yahoo.com/quote/%s?p=%s&.tsrc=fin-srch-v1'%(ticker,ticker))
-    soup = BeautifulSoup(page, "lxml")
-    # <span class="Trsdu(0.3s) Trsdu(0.3s) Fw(b) Fz(36px) Mb(-4px) D(b)" data-reactid="14">2.9900</span>
-    for index, item in enumerate (jsonYmap):
-        if item == "Ticker":
-            jsonYmap[item] = soup.find("h1").text
-        else:
-            jsonYmap[item] = soup.find("td", attrs={"data-test":jsonYmap[item]}).text
+    try:
+        page = urllib.request.urlopen('https://sg.finance.yahoo.com/quote/%s?p=%s&.tsrc=fin-srch-v1'%(ticker,ticker))
+        soup = BeautifulSoup(page, "lxml")
+        for index, item in enumerate (jsonYmap):
+            if item == "Ticker":
+                jsonYmap[item] = soup.find("h1").text
+            else:
+                jsonYmap[item] = soup.find("td", attrs={"data-test":jsonYmap[item]}).text
+        return jsonYmap
+    except Exception as e:
+        print (e)
+        return
 
-    return jsonYmap
+def scrapRealTime(ticker, jsonStInfo, source):
+    try:
+        page = urllib.request.urlopen('https://sg.finance.yahoo.com/quote/%s?p=%s&.tsrc=fin-srch-v1'%(ticker,ticker))
+        soup = BeautifulSoup(page, "lxml")
+        return soup.body.find('span', attrs={'class': jsonStInfo['Sources'][source]}).text
+    except Exception as e:
+        print (e)
+        return None
 
 def scrapAPI(purpose, ticker):
-   yahoo_api = "https://query2.finance.yahoo.com/v11/finance/quoteSummary/{0}?formatted=true&lang=en-US&modules={1}".format(ticker.symbol, purpose)
-   yahoo_api_response = requests.get(yahoo_api)
-   yahoo_api_json =  json.loads(yahoo_api_response.text)
-   if (yahoo_api_json["quoteSummary"]["error"] == None):
-      # Date,Open,High,Low,Close
+    try:
+        yahoo_api = "https://query2.finance.yahoo.com/v11/finance/quoteSummary/{0}?formatted=true&lang=en-US&modules={1}".format(ticker.symbol, purpose)
+        yahoo_api_response = requests.get(yahoo_api)
+        yahoo_api_json =  json.loads(yahoo_api_response.text)
+        if (yahoo_api_json["quoteSummary"]["error"] == None):
+        # Open,High,Low,Close
 
-      # method 1 - object tree
-      # json_tree = objectpath.Tree(yahoo_api_json["quoteSummary"]["result"]) #build obj tree
-      # rOpen = tuple(json_tree.execute('$..regularMarketOpen.fmt'))
-      # rHigh = tuple(json_tree.execute('$..regularMarketDayHigh.fmt'))
-      # rLow = tuple(json_tree.execute('$..regularMarketDayLow.fmt'))
-      # rClose = tuple(json_tree.execute('$..regularMarketPreviousClose.fmt'))
+        # method 1 - object tree
+            # json_tree = objectpath.Tree(yahoo_api_json["quoteSummary"]["result"]) #build obj tree
+            # rOpen = tuple(json_tree.execute('$..regularMarketOpen.fmt'))
+            # rHigh = tuple(json_tree.execute('$..regularMarketDayHigh.fmt'))
+            # rLow = tuple(json_tree.execute('$..regularMarketDayLow.fmt'))
+            # rClose = tuple(json_tree.execute('$..regularMarketPreviousClose.fmt'))
 
-      # method 2 - direct path
-      rOpen = yahoo_api_json['quoteSummary']['result'][0]['price']["regularMarketOpen"]["raw"]
-      rHigh = yahoo_api_json['quoteSummary']['result'][0]['price']["regularMarketDayHigh"]["raw"]
-      rLow = yahoo_api_json['quoteSummary']['result'][0]['price']["regularMarketDayLow"]["raw"]
-      rClose = yahoo_api_json['quoteSummary']['result'][0]['price']["regularMarketPreviousClose"]["raw"]
-      #time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(1347517370))
-      print("API Success {0}".format(ticker.symbol))
-      with open(ticker.symbol+".csv", "a") as file:
-         file.write(str(rOpen)+","+str(rHigh)+","+str(rLow)+","+str(rClose)+"\n")
-   else:
-      print("API error: {0}".format(yahoo_api_json["quoteSummary"]["error"]))
+        # method 2 - direct path
+            rOpen = yahoo_api_json['quoteSummary']['result'][0]['price']["regularMarketOpen"]["raw"]
+            rHigh = yahoo_api_json['quoteSummary']['result'][0]['price']["regularMarketDayHigh"]["raw"]
+            rLow = yahoo_api_json['quoteSummary']['result'][0]['price']["regularMarketDayLow"]["raw"]
+            rClose = yahoo_api_json['quoteSummary']['result'][0]['price']["regularMarketPreviousClose"]["raw"]
+            #time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(1347517370))
+            print("API Success {0}".format(ticker.symbol))
+            # with open(ticker.symbol+".csv", "a") as file:
+            #     file.write(str(rOpen)+","+str(rHigh)+","+str(rLow)+","+str(rClose)+"\n")
+            return [str(rOpen),str(rHigh),str(rLow),str(rClose)]
+        else:
+            print("API error: {0}".format(yahoo_api_json["quoteSummary"]["error"]))
+            return None
+    except Exception as e:
+        print (e)
+        return None
+
+def create_daily_record(sName, sSymbol, sDate, sTime, sValue):
+    try:
+        with open(sSymbol+"_"+sDate+".txt", "a+") as f:
+            f.write(sName+","+sSymbol+","+sDate+","+sTime+","+sValue+"\n")
+            f.close()
+    except Exception as e:
+        print (e)
+        return
+
+def create_closing_record(sSymbol, sDate, sOpen, sClose):
+    try:
+        with open(sSymbol+"_history.txt", "a+") as f:
+            if sDate in f.read():
+                print(sSymbol + " data exist")
+            else:
+                f.write(sSymbol+","+sDate+","+sOpen+","+sClose+"\n")
+                f.close()
+    except Exception as e:
+        print (e)
+        return
 
 class Ticker(object):
     def __init__(self):
@@ -95,20 +136,18 @@ class Ticker(object):
 		
 class actionsDB(object):
     def __init__(self):
-        self.jsonStock = {}
+        self.conn = create_connection('stock.db')
 
     def writeDB(self, data):
         sql = ''' INSERT INTO tickers(name, symbol, date, time, value)
                 VALUES(?,?,?,?,?) '''
-        cur = conn.cursor()
+        cur = self.conn.cursor()
         cur.execute(sql, data)
         cur.commit()
         return cur.lastrowid
 
     def readDB(self):
-        with open('stock_info.json') as f:
-            self.jsonStock = json.load(f)
-        return self.jsonStock
+        return "Success"
 
     def updateDB(self):
         return "Success"
