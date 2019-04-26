@@ -4,8 +4,18 @@ handling data and business logic"""
 
 import os
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
-import json, os, sqlite3, urllib.request, requests
+import json, os, sqlite3, urllib.request, requests, re
 from bs4 import BeautifulSoup # for html parsing and scraping
+import pandas as pd
+from sklearn.preprocessing import MinMaxScaler
+import numpy as np
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+
+sc_predict = MinMaxScaler(feature_range = (0,1)) # normalize data to between 0-1, combo with sigmod
+sc = sc_predict
+n_past = 50  # Number of past days want to use to predict/ timesteps
+n_future = 2 # Number of days predict into future
+n_feature = 1
 
 def create_connection(db_file):
     """ create a database connection to the SQLite database
@@ -49,7 +59,7 @@ def scrapWeb(ticker, jsonYmap):
         return jsonYmap
     except Exception as e:
         print (e)
-        return
+        return None
 
 def scrapRealTime(ticker, jsonStInfo, source):
     try:
@@ -94,24 +104,89 @@ def scrapAPI(purpose, ticker):
 
 def create_daily_record(sName, sSymbol, sDate, sTime, sValue):
     try:
-        with open(sSymbol+"_"+sDate+".txt", "a+") as f:
+        with open("Daily/"+sSymbol+"_"+sDate+".csv", "a+") as f:
             f.write(sName+","+sSymbol+","+sDate+","+sTime+","+sValue+"\n")
             f.close()
     except Exception as e:
-        print (e)
-        return
+        return None
 
 def create_closing_record(sSymbol, sDate, sOpen, sClose):
     try:
-        with open(sSymbol+"_history.txt", "a+") as f:
+        with open("History/"+sSymbol+"_history.csv", "a+") as f:
             if sDate in f.read():
                 print(sSymbol + " data exist")
             else:
-                f.write(sSymbol+","+sDate+","+sOpen+","+sClose+"\n")
+                sDelta = float(sOpen)-float(sClose)
+                f.write(sDate+","+str(sOpen)+","+str(sClose)+","+str(sDelta)+"\n")
                 f.close()
     except Exception as e:
+        return None
+
+def read_daily_record(sSymbol, sDate):
+    try:
+        rec = pd.read_csv("Daily/"+sSymbol+"_"+sDate+".csv", sep=',',\
+            header=None, names = ["Name","Symbol","Date","Time","Value"])
+        if len(rec.index) >= n_past:
+            return rec
+        else:
+            return pd.DataFrame()
+    except Exception as e:
         print (e)
-        return
+        return pd.DataFrame()
+
+def prediction(regressor, inputData):
+    X_inputData = []
+    # (1, 50, 1) [rows, timesteps, columns]
+    columns = inputData.Value       # get interested column(s)
+    columns = columns.astype(float) # cast panda obj to float type
+    columns = columns.tail(n_past)  # get most recent data
+    inputData = inputData.Value.to_numpy() # Convert to its Numpy-array representation
+
+    X_inputData = np.reshape(inputData, (1, n_past, 1))
+    predictions = regressor.predict(X_inputData)
+    predicted_stock_price = sc_predict.inverse_transform(predictions)
+    return predicted_stock_price
+
+def scrapNews(sSource, sCompany, sDate, jsonStInfo):
+    res = {}
+    try:
+        if "COMPANY" in sSource: # business time format
+            sSource = sSource.replace('COMPANY', sCompany)
+            # scrap overview page
+            page = urllib.request.urlopen(sSource)
+            soup = BeautifulSoup(page, "lxml")
+            articalList = soup.body.findAll('div', attrs={'class': 'media-body'}) # webpage artical list
+            for index, artical in enumerate (articalList):
+                if findWholeWord(sCompany)(str(artical)) == None: 
+                    continue
+                else:       # webpage artical contains company name
+                    url = re.findall("<a href=(.*?)>", str(artical))
+                    header = artical.find('a').text
+                    date = artical.find('time').text
+                    body = artical.find('p').text
+                    res[str(sCompany)] = url[0]
+            # scrap artical page
+            page = urllib.request.urlopen(res[str(sCompany)])
+            soup = BeautifulSoup(page, "lxml")
+            articalDetail = soup.body.findAll('div', attrs={'class': 'body-copy'})
+            articalFull = re.findall("<p>(.*?)</p>", str(articalDetail[0]))
+            articalFull = ' '.join(articalFull)
+            res[str(sCompany)] = articalFull
+
+        elif "SYMBOL" in sSource: # yahoo format
+            sSource = sSource.replace('SYMBOL', jsonStInfo['Singapore_Stock'][sCompany])
+
+        return res
+    except Exception as e:
+        return res
+
+def newsSentiment(source):
+    SIA = SentimentIntensityAnalyzer()
+    res = SIA.polarity_scores(source)
+    return res
+
+def findWholeWord(w):
+    return re.compile(r'\b({0})\b'.format(w), flags=re.IGNORECASE).search
 
 class Ticker(object):
     def __init__(self):
