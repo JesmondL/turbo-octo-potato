@@ -80,7 +80,7 @@ def train_RNN(regressor, X_train, Y_train):
     mcp = ModelCheckpoint(filepath='weights.h5', monitor='val_loss', verbose=1, save_best_only=True, save_weights_only=True)
     tb = TensorBoard('logs')
 
-    history = regressor.fit(X_train, Y_train, shuffle=False, epochs = 10000, batch_size = 192,\
+    history = regressor.fit(X_train, Y_train, shuffle=False, epochs = 10000, batch_size = 128,\
         callbacks=[es, rlr,mcp, tb], validation_split=0.2, verbose=1)
     # Save model
     regressor.save('Modules/StockMonitoring/model.h5')
@@ -95,17 +95,18 @@ def evulate_RNN(regressor, X_train, Y_train, sc_predict):
     real_stock_price = sc_predict.inverse_transform(Y_train[(n_future-1):-1])
     return real_stock_price, predicted_stock_price
 
-data = DataPreprocessing_Multi(dataset_train, X_train, Y_train) # multi data predict
-if os.path.isfile('Modules/StockMonitoring/model.h5'):
-    rnn = load_model('Modules/StockMonitoring/model.h5')
-else:
-    rnn = create_RNN()
-    train_RNN(rnn, data[0], data[1])
-result_RNN = evulate_RNN(rnn, data[0], data[1], data[2])
-plt.plot(result_RNN[0], color = 'red', label = 'Real Stock Price')
-plt.plot(result_RNN[1], color = 'blue', label = 'Predicted Stock Price')
-plt.title('Stock Price Prediction')
-plt.xlabel('Time')
-plt.ylabel('Price')
-plt.legend()
-plt.show()
+if __name__ == "__main__":
+    data = DataPreprocessing_Multi(dataset_train, X_train, Y_train) # multi data predict
+    if os.path.isfile('/Modules/StockMonitoring/model.h5'):
+        rnn = load_model('/Modules/StockMonitoring/model.h5')
+    else:
+        rnn = create_RNN()
+        train_RNN(rnn, data[0], data[1])
+    result_RNN = evulate_RNN(rnn, data[0], data[1], data[2])
+    plt.plot(result_RNN[0], color = 'red', label = 'Real Stock Price')
+    plt.plot(result_RNN[1], color = 'blue', label = 'Predicted Stock Price')
+    plt.title('Stock Price Prediction')
+    plt.xlabel('Time')
+    plt.ylabel('Price')
+    plt.legend()
+    plt.show()

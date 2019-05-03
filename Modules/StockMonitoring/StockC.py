@@ -49,35 +49,35 @@ class ProducerThread(threading.Thread):
       super(ProducerThread,self).__init__()
       self.target = target
       self.name = name
-      self.cnt = 30
+      self.cnt = 120
 
    def run(self):
       while True:
-         if not qWebQuery.full():
-            if (int(datetime.datetime.now().hour) >= int(jsonStInfo['Singapore_Time']['open'])) & \
-               (int(datetime.datetime.now().hour) < int(jsonStInfo['Singapore_Time']['close'])) & \
-               (datetime.datetime.now().weekday() <= 5): # within operating hour and weekdays will proceed
-               gOperating = True
-            else:
-               gOperating = False
-               StockV.noService(datetime.datetime.now().weekday(), datetime.datetime.now().hour)
-            qWebQuery.put(gOperating)
-            qAnalyticQuery.put(False)
-            logging.debug('Putting Web Analytic Query : ' + str(qWebQuery.qsize()) + ' items in queues')
-            time.sleep(10)
          if not qNewsQuery.full():
-            if self.cnt == 30: # 30*120=3600secs
+            if self.cnt == 120: # 120*120=14400secs = 4hrs
                qNewsQuery.put(True)
                logging.debug('Putting News Query : ' + str(qNewsQuery.qsize()) + ' items in queues')
                self.cnt = 0
             else:
                self.cnt = self.cnt + 1
+         if not qWebQuery.full():
+            if (int(datetime.datetime.now().hour) >= int(jsonStInfo['Singapore_Time']['open'])) & \
+               (int(datetime.datetime.now().hour) < int(jsonStInfo['Singapore_Time']['close'])) & \
+               (datetime.datetime.now().weekday() <= 5): # within operating hour and weekdays will proceed
+               qWebQuery.put(True)
+               qAnalyticQuery.put(True)
+            else:
+               StockV.noService(datetime.datetime.now().weekday(), datetime.datetime.now().hour)
+               qWebQuery.put(False)
+               qAnalyticQuery.put(False)
+            logging.debug('Putting Web Analytic Query : ' + str(qWebQuery.qsize()) + ' items in queues')
+         time.sleep(120)
       return
 
-class ConsumerThread(threading.Thread):
+class ScrapeThread(threading.Thread):
    def __init__(self, group=None, target=None, name=None,
    args=(), kwargs=None, verbose=None):
-      super(ConsumerThread,self).__init__()
+      super(ScrapeThread,self).__init__()
       self.target = target
       self.name = name
       return
@@ -137,7 +137,7 @@ class AnalyticThread(threading.Thread):
                      StockV.noAnalyticData(jsonStInfo, ticker)
                   else:
                      result = StockM.prediction(rnn, rec)
-                     StockV.showAnalyticResult(result)
+                     StockV.showAnalyticResult(ticker, result)
             else:
                StockV.noAnalyticService()
       return
@@ -165,11 +165,11 @@ class NewsThread(threading.Thread):
                      StockV.noNewsData(source, company)
                   else:
                      result = StockM.newsSentiment(recNews)
-                     StockV.showNewsResult(datetime.datetime.now().strftime("%Y-%m-%d"), \
-                        source, result)
+                     for k in result:
+                        StockV.showNewsResult(datetime.datetime.now().strftime("%Y-%m-%d"), k, result[k])
          else:
             StockV.noNewsService()
-            time.sleep(30)
+            time.sleep(3600)
       return
 
 if __name__ == "__main__":
@@ -178,11 +178,11 @@ if __name__ == "__main__":
    mDB = StockM.actionsDB() # db object
 
    p = ProducerThread(name='producer')
-   c = ConsumerThread(name='consumer')
+   s = ScrapeThread(name='scrape')
    a = AnalyticThread(name='analytic')
    n = NewsThread(name='news')
 
    p.start()
-   c.start()
+   s.start()
    a.start()
    n.start()

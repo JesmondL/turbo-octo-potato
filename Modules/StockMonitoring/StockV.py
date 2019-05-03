@@ -31,10 +31,10 @@ def noAnalyticService():
    print ("No analytic service")
 
 def noAnalyticData(jsonStInfo, ticker):
-   print (jsonStInfo['Singapore_Stock'][ticker] + " data is not ready")
+   print (jsonStInfo['Singapore_Stock'][ticker] + " data is not ready for analysis")
 
-def showAnalyticResult(result):
-   print (result)
+def showAnalyticResult(sTicker, result):
+   print (sTicker + " => " + str (result[0][0]) + " yet to inverse_transform result")
 
 def noNewsService():
    print ("No news scrap service")
@@ -43,4 +43,5 @@ def noNewsData(sSource, sCompany):
    print (sSource + " no news on " + sCompany)
 
 def showNewsResult(sDate, sNews, sValue):
-   print (sDate + ' ' + sNews + ' ' + sValue)
+   print (sDate + ' ' + sNews + ' Compound : ' + str(sValue['compound']) + \
+      ', Neg : ' + str(sValue['neg']) + ', Neu : ' + str(sValue['neu']) + ', Pos : ' + str(sValue['pos']))

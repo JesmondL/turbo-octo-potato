@@ -137,20 +137,25 @@ def read_daily_record(sSymbol, sDate):
 def prediction(regressor, inputData):
     X_inputData = []
     # (1, 50, 1) [rows, timesteps, columns]
-    columns = inputData.Value       # get interested column(s)
-    columns = columns.astype(float) # cast panda obj to float type
-    columns = columns.tail(n_past)  # get most recent data
-    inputData = inputData.Value.to_numpy() # Convert to its Numpy-array representation
-
-    X_inputData = np.reshape(inputData, (1, n_past, 1))
+    columns = inputData.Value
+    columns = columns.tail(n_past)  # get last n_past recent data
+    columns = columns.to_numpy()
+    # for i in range(0, len(columns)):
+    #     X_inputData = columns.tail(n_past)
+    #     X_inputData = sc.fit_transform(????) # scale data to between 0-1
+    #     X_inputData= X_inputData.reshape(1, n_past, 1)
+    #     sc_predict.fit_transform(????) #fit the scale, should be unqiue range per stock
+    #     predictions = regressor.predict(X_inputData)
+    #     predictions= sc_predict.inverse_transform(predictions)
+    
+    X_inputData = columns.reshape(1, n_past, 1)
     predictions = regressor.predict(X_inputData)
-    predicted_stock_price = sc_predict.inverse_transform(predictions)
-    return predicted_stock_price
+    return predictions
 
 def scrapNews(sSource, sCompany, sDate, jsonStInfo):
     res = {}
     try:
-        if "COMPANY" in sSource: # business time format
+        if "COMPANY" in sSource:            # business time format
             sSource = sSource.replace('COMPANY', sCompany)
             # scrap overview page
             page = urllib.request.urlopen(sSource)
@@ -159,30 +164,51 @@ def scrapNews(sSource, sCompany, sDate, jsonStInfo):
             for index, artical in enumerate (articalList):
                 if findWholeWord(sCompany)(str(artical)) == None: 
                     continue
-                else:       # webpage artical contains company name
-                    url = re.findall("<a href=(.*?)>", str(artical))
+                else:   # webpage artical contains company name
+                    url = re.findall("<a href=(.*?)>", str(artical)) # return type list
                     header = artical.find('a').text
                     date = artical.find('time').text
-                    body = artical.find('p').text
-                    res[str(sCompany)] = url[0]
-            # scrap artical page
-            page = urllib.request.urlopen(res[str(sCompany)])
-            soup = BeautifulSoup(page, "lxml")
-            articalDetail = soup.body.findAll('div', attrs={'class': 'body-copy'})
-            articalFull = re.findall("<p>(.*?)</p>", str(articalDetail[0]))
-            articalFull = ' '.join(articalFull)
-            res[str(sCompany)] = articalFull
-
-        elif "SYMBOL" in sSource: # yahoo format
+                    body = artical.find('p').text              
+                        # scrap artical page
+                    page2 = urllib.request.urlopen(url[0][1:-1]) # exclude first and last string ''
+                    soup2 = BeautifulSoup(page2, "lxml")
+                    articalDetail2 = soup2.body.findAll('div', attrs={'class': 'body-copy'})
+                    articalFull2 = re.findall("<p>(.*?)</p>", str(articalDetail2[0]))
+                    articalFull2 = ' '.join(articalFull2)
+                    res[sCompany+"_"+str(index)+"_BT"] = articalFull2
+        elif "SYMBOL" in sSource:           # yahoo format
             sSource = sSource.replace('SYMBOL', jsonStInfo['Singapore_Stock'][sCompany])
-
+            # scrap overview page
+            page = urllib.request.urlopen(sSource)
+            soup = BeautifulSoup(page, "lxml")
+            articalList = soup.body.findAll('div', attrs={'class': 'Ov(h) Pend(14%) Pend(0)--sm1024'}) # webpage artical list
+            for index, artical in enumerate (articalList):
+                if findWholeWord(sCompany)(str(artical)) == None: 
+                    continue
+                else:   # webpage artical header contains company name
+                    url = re.findall("<a href=(.*?)>", str(artical))
+                    header = artical.find('u').text
+                    # date = artical.find('span').text <span data-reactid="???">
+                    body = artical.find('p').text
+                        # scrap artical page
+                    if url[0] == "":
+                        res[sCompany+"_"+index+"_YH"] = header
+                    else:
+                        page2 = urllib.request.urlopen('https://sg.finance.yahoo.com/'+url[0][1:-1])
+                        soup2 = BeautifulSoup(page2, "lxml")
+                        articalDetail2 = soup2.body.findAll('p', attrs={'class': 'canvas-atom canvas-text Mb(1.0em) Mb(0)--sm Mt(0.8em)--sm'})
+                        articalFull2 = re.findall("<p>(.*?)</p>", str(articalDetail2[0]))
+                        articalFull2 = ' '.join(articalFull2)
+                        res[sCompany+"_"+str(index)+"_YH"] = articalFull2
         return res
     except Exception as e:
         return res
 
 def newsSentiment(source):
+    res = {}
     SIA = SentimentIntensityAnalyzer()
-    res = SIA.polarity_scores(source)
+    for k in source:
+        res[k] = SIA.polarity_scores(source[k])
     return res
 
 def findWholeWord(w):
