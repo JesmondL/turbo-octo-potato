@@ -5,7 +5,7 @@ handling graphical user interface objects and presentation"""
 #os.chdir(os.path.dirname(os.path.realpath(__file__)))
 from wordcloud import WordCloud, STOPWORDS, ImageColorGenerator
 from tqdm import tqdm
-import StockM
+import StockMOO
 
 def startView():
    print ('Starting up monitoring program...')
@@ -30,17 +30,17 @@ def showRealTimeResult(sDate, sTicker, sValue):
 def noAnalyticService():
    print ("No analytic service")
 
-def noAnalyticData(jsonStInfo, ticker):
-   print (jsonStInfo['Singapore_Stock'][ticker] + " data is not ready for analysis")
+def noAnalyticData(name, symbol):
+   print (name + " " + symbol + " data is not ready for analysis")
 
-def showAnalyticResult(sTicker, result):
-   print (sTicker + " => " + str (result[0][0]) + " yet to inverse_transform result")
+def showAnalyticResult(name, result):
+   print (name + " => " + str(result[0][0]) + " " + str(result[1]))
 
 def noNewsService():
    print ("No news scrap service")
 
-def noNewsData(sSource, sCompany):
-   print (sSource + " no news on " + sCompany)
+def noNewsData(sSource, name):
+   print (sSource + " no news on " + name)
 
 def showNewsResult(sDate, sNews, sValue):
    print (sDate + ' ' + sNews + ' Compound : ' + str(sValue['compound']) + \

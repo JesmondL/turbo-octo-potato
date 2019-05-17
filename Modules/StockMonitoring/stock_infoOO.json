@@ -1,0 +1,45 @@
+{
+    "Symbol":{
+        "0":"C52.SI",
+        "1":"BN4.SI",
+        "2":"K71U.SI",
+        "3":"BSL.SI",
+        "4":"S59.SI",
+        "5":"Z74.SI",
+        "6":"S63.SI",
+        "7":"ES3.SI",
+        "8":"NS8U.SI",
+        "9":"A17U.SI",
+        "10":"Y92.SI",
+        "11":"O32.SI"
+    },
+    "Company":{
+        "0":"COMFORTDELGRO",
+        "1":"KEPPEL CORP",
+        "2":"KEPPEL REIT",
+        "3":"RAFFLES MEDICAL",
+        "4":"SIA ENGINEERING",
+        "5":"SINGTEL",
+        "6":"ST ENGINEERING",
+        "7":"STI ETF",
+        "8":"HPH Trust USD",
+        "9":"ASCENDAS REIT",
+        "10":"THAIBEV",
+        "11":"OLAM INTL"
+    },
+    "Singapore_Time":{
+        "open":"9",
+        "break":"12",
+        "resume":"13",
+        "close":"17",
+        "GMT":"+8"  
+        },
+    "Sources":{
+        "yahoo":"Trsdu(0.3s) Trsdu(0.3s) Fw(b) Fz(36px) Mb(-4px) D(b)"
+    },
+    "News":{
+        "business_times":"https://www.businesstimes.com.sg/search/COMPANY?page=1&filter=body_en%2C0%2C0&sort=publicationdate",
+        "yahoo":"https://sg.finance.yahoo.com/quote/SYMBOL?p=SYMBOL&.tsrc=fin-srch-v1"
+        
+    }
+}
