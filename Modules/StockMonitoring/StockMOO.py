@@ -22,7 +22,7 @@ n_future = 2 # Number of days predict into future
 n_feature = 1
 SIA = SentimentIntensityAnalyzer()
 
-def loadJSON(fp):
+def loadJSON(fp:str):
     try:
         with open(fp) as f:
             jsonObj = json.load(f)
@@ -31,15 +31,16 @@ def loadJSON(fp):
         print (e)
         return None
 
-def create_daily_record(sName, sSymbol, sDate, sTime, sValue):
+def create_daily_record(sName:str, sSymbol:str, sDate:str, sTime:str, sValue:str):
     try:
         with open("Daily/"+sSymbol+"_"+sDate+".csv", "a+") as f:
             f.write(sName+","+sSymbol+","+sDate+","+sTime+","+sValue+"\n")
             f.close()
     except BaseException as e:
+        print (e)
         return None
 
-def create_closing_record(sSymbol, sDate, sOpen, sClose):
+def create_closing_record(sSymbol:str, sDate:str, sOpen:str, sClose:str):
     try:
         with open("History/"+sSymbol+"_history.csv", "a+") as f:
             if sDate in f.read():
@@ -49,6 +50,7 @@ def create_closing_record(sSymbol, sDate, sOpen, sClose):
                 f.write(sDate+","+str(sOpen)+","+str(sClose)+","+str(sDelta)+"\n")
                 f.close()
     except BaseException as e:
+        print (e)
         return None
 
 def read_daily_record(sSymbol, sDate):
@@ -88,37 +90,15 @@ def newsSentiment(source):
 def findWholeWord(w: str):
     return re.compile(r'\b({0})\b'.format(w), flags=re.IGNORECASE).search
 
-def find_daily_extremes(sSymbol: str, sDate, inputData):
+def find_extremes(ticker: object, sDate: str):
     try:
-        #find high
-        #find low
-        #find delta
-        return None
+        data = pd.read_csv("Daily/" + ticker.symbol + "_" + sDate + ".csv", sep=',',\
+            header=None, names = ["Name","Symbol","Date","Time","Value"])
+        ticker.low = data.min(axis = "Value")
+        ticker.high = data.max(axis = "Value")
+        ticker.delta = ticker.low - ticker.high
     except BaseException as e:
-        return None
-
-def start_session(web_client: slack.WebClient, user_id: str, channel: str, slackIN: str, jsonStInfo: dict):
-    # Create a new session
-    if user_id == None:
-        pass
-    else:
-        session = ReplyMsg(channel, user_id)
-        name = 'test'
-        symbol = 'test'
-        data = 'test'
-
-        # Text processing
-        for key, value in jsonStInfo['Symbol'].items():
-            if value[:3].lower() == slackIN.lower(): # take first 3 char compare, eg Z74
-                symbol = value
-        for key, value in jsonStInfo['Company'].items():
-            if value.lower() == slackIN.lower():
-                name = value
-
-        # Get the message payload
-        message = session.get_payload(name, symbol, data)
-        # Post the onboarding message in Slack
-        web_client.chat_postMessage(**message)
+        print (e)
 
 class Ticker:
     def __init__(self, name, symbol):
@@ -140,6 +120,9 @@ class Ticker:
         self.peRatio = None
         self.eps = None
         self.status = None
+        self.high = None
+        self.low = None
+        self.delta = None
 
     def scrapWeb(self):
         try:
@@ -178,7 +161,7 @@ class Ticker:
             soup = BeautifulSoup(page, "lxml")
             self.scrapeValue = soup.body.find('span', attrs={'class':'Trsdu(0.3s) Trsdu(0.3s) Fw(b) Fz(36px) Mb(-4px) D(b)'}).text
         except BaseException as e:
-            print (self.symbol + ' ' + e)
+            print (self.symbol + ' ' + str(e))
             self.scrapeValue = None
 
     def scrapNews(self, sSource):
@@ -242,15 +225,25 @@ class Ticker:
         except BaseException as e:
             print (self.symbol + ' ' + e)
 
-class ReplyMsg:
-    """Constructs the reply message"""
+class SendMsg:
+    """Constructs the slack message"""
 
     WELCOME_BLOCK = {
         "type": "section",
         "text": {
             "type": "mrkdwn",
             "text": (
-                "Message received! :wave: \n\n"
+                "Good day! :wave: \n\n"
+            ),
+        },
+    }
+
+    RETURN_BLOCK = {
+        "type": "section",
+        "text": {
+            "type": "mrkdwn",
+            "text": (
+                ":wave: \n\n"
             ),
         },
     }
@@ -259,7 +252,7 @@ class ReplyMsg:
     def __init__(self, channel, user):
         self.channel = channel
         self.username = "Service for " + user
-        self.icon_emoji = ":python:"
+        self.icon_emoji = ":wave:"
         self.timestamp = ""
         self.reaction_task_completed = False
         self.pin_task_completed = False
@@ -271,10 +264,40 @@ class ReplyMsg:
             "username": self.username,
             "icon_emoji": self.icon_emoji,
             "blocks": [
-                self.WELCOME_BLOCK,
+                self.WELCOME_BLOCK
             ],
         }
-    
+
+    def return_message_payload(self):
+        return {
+            "ts": self.timestamp,
+            "channel": self.channel,
+            "username": self.username,
+            "icon_emoji": self.icon_emoji,
+            "blocks": [
+                self.RETURN_BLOCK
+            ],
+        }
+
+    def trigger_message_payload(self, name, symbol, data, link):
+        return {
+            "ts": self.timestamp,
+            "channel": self.channel,
+            "username": self.username,
+            "icon_emoji": self.icon_emoji,
+            "blocks": [
+                *self._get_trigger(name, symbol, data, link)
+            ],
+        }
+
+    def _get_trigger(self, name, symbol, data, link):
+        text = (name + " " + symbol + " " + data)
+        information = (
+            ":information_source: *<'%s'|"
+            "News link>*"%(link)
+        )
+        return self._get_task_block(text, information)
+
     def get_payload(self, name, symbol, data):
         return {
             "ts": self.timestamp,
@@ -300,3 +323,10 @@ class ReplyMsg:
             {"type": "section", "text": {"type": "mrkdwn", "text": text}},
             {"type": "context", "elements": [{"type": "mrkdwn", "text": information}]},
         ]
+
+class User:
+    def __init__(self, name, numOfStocks=20):
+        self.name = name
+        self.channel = None
+        self.choice = None
+        self.numMonitor = numOfStocks

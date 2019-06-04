@@ -8,7 +8,7 @@ from tqdm import tqdm
 import StockMOO
 
 def startView():
-   print ('Starting up monitoring program...')
+   print ("Starting up service...")
 
 def noService(day, hour):
    if day > 4:
@@ -33,8 +33,8 @@ def noAnalyticService():
 def noAnalyticData(name, symbol):
    print (name + " " + symbol + " data is not ready for analysis")
 
-def showAnalyticResult(name, result):
-   print (name + " => " + str(result[0][0]) + " " + str(result[1]))
+def showAnalyticResult(ticker):
+   print (ticker.name + " => " + ticker.analyticResult)
 
 def noNewsService():
    print ("No news scrap service")
@@ -45,3 +45,6 @@ def noNewsData(sSource, name):
 def showNewsResult(sDate, sNews, sValue):
    print (sDate + ' ' + sNews + ' Compound : ' + str(sValue['compound']) + \
       ', Neg : ' + str(sValue['neg']) + ', Neu : ' + str(sValue['neu']) + ', Pos : ' + str(sValue['pos']))
+
+def deltaAlert(ticker):
+   print (ticker.name + " " + ticker.symbol + " " + ticker.delta + " exceeds threshold")

@@ -8,7 +8,7 @@ handling the user interface and application"""
 import os
 os.chdir(os.path.dirname(os.path.realpath(__file__)))
 import StockMOO, StockVOO
-import time, json, requests, datetime, threading, queue, logging, copy, slack, certifi
+import time, json, requests, datetime, threading, queue, logging, copy, certifi, slack
 from keras.models import load_model
 import pandas as pd
 import ssl as ssl_lib
@@ -18,10 +18,15 @@ qWebQuery = queue.Queue(BUF_SIZE)
 qAnalyticQuery = queue.Queue(BUF_SIZE)
 qNewsQuery = queue.Queue(BUF_SIZE)
 jsonStInfo = StockMOO.loadJSON('stock_infoOO.json')
+config = StockMOO.loadJSON('config.json')
 logging.basicConfig(level=logging.DEBUG,
                     format='(%(threadName)-9s) %(message)s',)
 tickers = []
-user_id = []
+users = [] # user tracking
+DELTA_THRESHOLD = 0.01
+SLACK_BOT_TOKEN = os.environ["SLACK_BOT_TOKEN"] # stockservice app's bot API token
+slack_WC = slack.WebClient(token=SLACK_BOT_TOKEN)
+slack_url = config["SLACK_WEBHOOK"]
 
 class ProducerThread(threading.Thread):
     def __init__(self, group=None, target=None, name=None,
@@ -102,8 +107,8 @@ class AnalyticThread(threading.Thread):
         return
 
     def run(self):
+        rnn = load_model('model.h5')
         while True:
-            rnn = load_model('model.h5')
             if not qAnalyticQuery.empty():
                 status = qAnalyticQuery.get()
                 logging.debug('Getting Analysis Trend : ' + str(qAnalyticQuery.qsize()) + ' items in queue')
@@ -114,10 +119,13 @@ class AnalyticThread(threading.Thread):
                         if rec.empty:
                             StockVOO.noAnalyticData(ticker.name, ticker.symbol)
                         else:
-                            result = StockMOO.prediction(rnn, rec)
-                            StockVOO.showAnalyticResult(ticker.name, result)
-                            StockMOO.find_daily_extremes(ticker.symbol, \
-                                datetime.datetime.now().strftime("%Y-%m-%d"), rec)
+                            ticker.analyticResult = StockMOO.prediction(rnn, rec)
+                            StockVOO.showAnalyticResult(ticker)
+                            StockMOO.find_extremes(ticker.symbol, \
+                                datetime.datetime.now().strftime("%Y-%m-%d"))
+                            if (ticker.delta/ticker.high) >= DELTA_THRESHOLD: # difference greater than threshold
+                                StockVOO.deltaAlert(ticker)
+                                slack_webhook_txt(ticker.name + " " + ticker.symbol + " " + ticker.delta + " exceeds threshold")
                 else:
                     StockVOO.noAnalyticService()
         return
@@ -154,16 +162,164 @@ class NewsThread(threading.Thread):
 @slack.RTMClient.run_on(event="message")
 def message(**payload):
     """
-    Trigger flow when specific text is detected
+    Trigger flow when text is detected
     """
     data = payload["data"]
-    web_client = payload["web_client"]
-    channel_id = data.get("channel")
-    if data.get("user") in user_id:
-        print ("User is in the system")
-    else:
-        user_id.append(data.get("user"))
-        StockMOO.start_session(web_client, data.get("user"), channel_id, data.get("text"), jsonStInfo)
+    if data.get("user") != None:        # ignore msg event by script input
+        session = StockMOO.SendMsg(data.get("channel"), data.get("user"))
+        if data.get("user") in users:   # returned user
+            pass
+        else:                           # new user
+            users.append(data.get("user"))
+            # Get the init message payload
+            message = session.init_message_payload()
+            # Post the init message in Slack
+            slack.WebClient.chat_postMessage(**message)
+
+        # Text processing
+        for ticker in tickers:
+            if ticker.symbol[:3].lower() in data.get("text").lower(): # take first 3 char compare, eg Z74
+                message = session.get_payload(ticker.name, ticker.symbol, ticker.scrapeValue)
+                break
+            if ticker.name.lower() in data.get("text").lower():
+                message = session.get_payload(ticker.name, ticker.symbol, ticker.scrapeValue)
+                break
+    
+        # Post the onboarding message in Slack
+        slack.WebClient.chat_postMessage(**message)
+
+def slack_webhook_txt(message:str):
+    encoded_data = json.dumps({'text': message}).encode('utf-8')
+    response = requests.request("POST", slack_url, data=encoded_data, headers={'Content-Type': 'application/json'})
+    print(str(response.status_code))
+
+def slack_webhook_data(ticker):   
+    encoded_data = json.dumps({
+        "attachments": [
+            {
+                "fallback": "Stock Information",
+                "color": "#36a64f",
+                "fields": [
+                    {
+                        "title": "Company",
+                        "value": ticker.name
+                    },
+                    {
+                        "title": "Symbol",
+                        "value": ticker.symbol
+                    },
+                    {
+                        "title": "Value",
+                        "value": ticker.scrapeValue
+                    }
+                ]
+            }
+        ]
+    }).encode('utf-8')
+    response = requests.request("POST", slack_url, data=encoded_data, headers={'Content-Type': 'application/json'})
+    print(str(response.status_code))
+
+def slack_webhook_choice():
+    encoded_data = json.dumps({
+        "attachments": [
+            {
+                "fallback": "Stock Information",
+                "color": "#36a64f",
+                "actions": [
+                    {
+                        "name": "choice",
+                        "text": "Volume",
+                        "type": "button",
+                        "value": "volume",
+                        "confirm": {
+                            "title": "Are you sure?",
+                            "text": "Comfirm?",
+                            "ok_text": "Yes",
+                            "dismiss_text": "No"
+                        }
+                    },
+                    {
+                        "name": "choice",
+                        "text": "Gain",
+                        "style": "primary",
+                        "type": "button",
+                        "value": "gain",
+                        "confirm": {
+                            "title": "Are you sure?",
+                            "text": "Comfirm?",
+                            "ok_text": "Yes",
+                            "dismiss_text": "No"
+                        }
+                    },
+                    {
+                        "name": "choice",
+                        "text": "Loss",
+                        "style": "danger",
+                        "type": "button",
+                        "value": "loss",
+                        "confirm": {
+                            "title": "Are you sure?",
+                            "text": "Comfirm?",
+                            "ok_text": "Yes",
+                            "dismiss_text": "No"
+                        }
+                    }
+                ]
+            }
+        ]
+    }).encode('utf-8')
+    response = requests.request("POST", slack_url, data=encoded_data, headers={'Content-Type': 'application/json'})
+    print(str(response.status_code))
+
+def slack_api_choice(channel):
+    CHOICE_BLOCK = [
+            {
+            "blocks": [
+                {
+                "type": "actions",
+                "elements": [
+                    {
+                        "type": "button",
+                        "text": {
+                            "type": "plain_text",
+                            "text": "Volume"
+                        },
+                        "style": "primary",
+                        "value": "volume"
+                    },
+                    {
+                        "type": "button",
+                        "text": {
+                            "type": "plain_text",
+                            "text": "Gain"
+                        },
+                        "style": "primary",
+                        "value": "gain"
+                    },
+                    {
+                        "type": "button",
+                        "text": {
+                            "type": "plain_text",
+                            "text": "Loss"
+                        },
+                        "style": "primary",
+                        "value": "loss"
+                    },
+                    {
+                        "type": "button",
+                        "text": {
+                            "type": "plain_text",
+                            "text": "Delta"
+                        },
+                        "style": "primary",
+                        "value": "delta"
+                    }
+                ]
+            }
+        ]
+        }
+    ]
+    slack_WC.api_call("chat.postMessage", json={"channel":channel,"text":"Which criteria would you like to sort on? :coffee:", "attachments":CHOICE_BLOCK})
 
 def initialize():
     for t in jsonStInfo['Symbol']:
@@ -185,6 +341,5 @@ if __name__ == "__main__":
     n.start()
 
     ssl_context = ssl_lib.create_default_context(cafile=certifi.where())
-    slack_token = os.environ["SLACK_BOT_TOKEN"] # stockservice app API token
-    rtm_client = slack.RTMClient(token=slack_token, ssl=ssl_context)
+    rtm_client = slack.RTMClient(token=SLACK_BOT_TOKEN, ssl=ssl_context)
     rtm_client.start()
