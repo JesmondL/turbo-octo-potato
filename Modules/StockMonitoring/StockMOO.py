@@ -4,19 +4,15 @@ handling data and business logic"""
 
 # import os
 # os.chdir(os.path.dirname(os.path.realpath(__file__)))
-import json, os, sqlite3, urllib.request, requests, re, slack
+import json, os, sqlite3, urllib.request, requests, re, slack, datetime
 from bs4 import BeautifulSoup # for html parsing and scraping
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 import numpy as np
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
+from io import StringIO
 
-dataset = pd.read_csv('History/Z74.SI_history.csv')
-dataset = dataset.Open.to_numpy()
-dataset = dataset.reshape(-1, 1)
-sc_predict = MinMaxScaler(feature_range = (0,1)) # normalize data to between 0-1, combo with sigmod
-sc_predict.fit_transform(dataset) #predict the 1st column data; open price
-del dataset
+MONITOR_SIZE = 25
 n_past = 50  # Number of past days want to use to predict/ timesteps
 n_future = 2 # Number of days predict into future
 n_feature = 1
@@ -65,7 +61,14 @@ def read_daily_record(sSymbol, sDate):
         print (e)
         return pd.DataFrame()
 
-def prediction(regressor, inputData):
+def prediction(regressor, inputData, symbol):
+    # define scale range
+    df = pd.read_csv("History/" + symbol + "_history.csv")
+    df = df.Open.to_numpy()
+    sc_predict = MinMaxScaler() # normalize data to between 0-1, combo with sigmod
+    scale_range = np.array([0, df['Open'].max(axis=1)])
+    sc_predict.fit_transform(scale_range.reshape(-1, 1))
+
     X_inputData = []
     # (1, 50, 1) [rows, timesteps, columns]
     columns = inputData.Value
@@ -99,6 +102,23 @@ def find_extremes(ticker: object, sDate: str):
         ticker.delta = ticker.low - ticker.high
     except BaseException as e:
         print (e)
+
+def normalize(min: int, max: int, x: int):
+    return (x - min) / (max - min)
+
+def inv_normalize(min: int, max: int, x: int):
+    return (max - x) / (max - min)
+
+def SGX(url: str, filename: str, criteria: str, size: str):
+# SGX SES 
+    yesterday = datetime.date.today().toordinal() - 731760
+    r = requests.get(url + yesterday + filename)
+    if r.status_code == 200: 
+        SGX = StringIO(r.text)
+        df = pd.read_csv(SGX, sep=";", index_col=False, header=None, names = ["Date","Name","Remarks","Currency","High","Low","Last","Change","Volume","Bid","Offer","Market","Open","Value","Symbol","Dclose"])
+        df.drop(["Remarks","Currency","Last","Bid","Offer","Market","Value","Dclose"], axis=1, inplace=True)
+        sort_df = df.sort_values(criteria,ascending=False)
+        sort_df.head(size)
 
 class Ticker:
     def __init__(self, name, symbol):
